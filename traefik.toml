@@ -1,0 +1,12 @@
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+
+[api]
+  dashboard = true
+  insecure = true
+
+[providers]
+  [providers.docker]
+    swarmMode = true
+    exposedByDefault = false

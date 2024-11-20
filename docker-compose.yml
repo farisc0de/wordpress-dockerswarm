@@ -1,0 +1,82 @@
+version: "3.8"
+
+services:
+  app:
+    image: farisc0de/wordpress:latest
+    environment:
+      AUTORUN_ENABLED: "true"
+      PHP_MEMORY_LIMIT: "2048M"
+      PHP_POST_MAX_SIZE: "256M"
+      PHP_UPLOAD_MAX_FILE_SIZE: "15M"
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.app.rule=Host(`farisotaibi.com`)"
+        - "traefik.http.services.app.loadbalancer.server.port=8080"
+    volumes:
+      - ./wordpress:/var/www/html
+    networks:
+      - web
+
+  traefik:
+    image: traefik:2.11
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80" # Web entry point
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.toml:/etc/traefik/traefik.toml" # Optional Traefik config file
+    networks:
+      - web
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - web
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.farisotaibi.com`)"
+        - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+    depends_on:
+      - mysql
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+
+volumes:
+  mysql_data:
+    external: true
